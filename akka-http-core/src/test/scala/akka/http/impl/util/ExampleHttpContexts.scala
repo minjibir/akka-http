@@ -24,9 +24,6 @@ import scala.concurrent.Future
  */
 object ExampleHttpContexts {
 
-  implicit val system: ActorSystem = ???
-  // TODO show example how to obtain pre-configured context from ssl-config
-
   def getExampleServerContext() = exampleServerContext.asJava
 
   val exampleServerContext = {
@@ -45,7 +42,7 @@ object ExampleHttpContexts {
     ConnectionContext.httpsServer(context)
   }
 
-  val exampleClientContext = {
+  def exampleClientContext(implicit system: ActorSystem) = {
     val certStore = KeyStore.getInstance(KeyStore.getDefaultType)
     certStore.load(null, null)
     // only do this if you want to accept a custom root CA. Understand what you are doing!
