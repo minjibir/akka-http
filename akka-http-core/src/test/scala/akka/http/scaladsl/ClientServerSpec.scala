@@ -6,6 +6,8 @@ package akka.http.scaladsl
 
 import java.io.{ BufferedReader, BufferedWriter, InputStreamReader, OutputStreamWriter }
 import java.net.{ BindException, Socket }
+import java.security.{ KeyStore, SecureRandom }
+import java.security.cert.CertificateFactory
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicLong
 
@@ -33,8 +35,7 @@ import akka.stream._
 import akka.testkit._
 import akka.util.ByteString
 import com.typesafe.config.{ Config, ConfigFactory }
-import com.typesafe.sslconfig.akka.AkkaSSLConfig
-import com.typesafe.sslconfig.ssl.{ SSLConfigSettings, SSLLooseConfig }
+import javax.net.ssl.{ SSLContext, TrustManagerFactory }
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.concurrent.Eventually.eventually
 
@@ -623,10 +624,28 @@ Host: example.com
       val clientSettings = ConnectionPoolSettings(system).withConnectionSettings(ClientConnectionSettings(system).withSocketOptions(SO.ReceiveBufferSize(serverToClientNetworkBufferSize) :: Nil))
 
       val serverConnectionContext = ExampleHttpContexts.exampleServerContext
-      // Disable hostname verification as ExampleHttpContexts.exampleClientContext sets hostname as akka.example.org
-      val sslConfigSettings = SSLConfigSettings().withLoose(SSLLooseConfig().withDisableHostnameVerification(true))
-      val sslConfig = AkkaSSLConfig().withSettings(sslConfigSettings)
-      val clientConnectionContext = ConnectionContext.https(ExampleHttpContexts.exampleClientContext.sslContext, Some(sslConfig))
+
+      // Create SSLEngine without hostname verification as ExampleHttpContexts.exampleClientContext sets hostname as akka.example.org
+      // Create SSLEngine without hostname verification as ExampleHttpContexts.exampleClientContext sets hostname as akka.example.org
+      val context = {
+        val certStore = KeyStore.getInstance(KeyStore.getDefaultType)
+        certStore.load(null, null)
+        // only do this if you want to accept a custom root CA. Understand what you are doing!
+        certStore.setCertificateEntry("ca", CertificateFactory.getInstance("X.509").generateCertificate(getClass.getClassLoader.getResourceAsStream("keys/rootCA.crt")))
+
+        val certManagerFactory = TrustManagerFactory.getInstance("SunX509")
+        certManagerFactory.init(certStore)
+
+        val context = SSLContext.getInstance("TLS")
+        context.init(null, certManagerFactory.getTrustManagers, new SecureRandom)
+        context
+      }
+      val insecureSslEngineFactory = () => {
+        val engine = context.createSSLEngine()
+        engine.setUseClientMode(true)
+        engine
+      }
+      val clientConnectionContext = ConnectionContext.https(_ => insecureSslEngineFactory)
 
       val entity = Array.fill[Char](999999)('0').mkString + "x"
       val routes: Flow[HttpRequest, HttpResponse, Any] = Flow[HttpRequest].map { _ => HttpResponse(entity = entity) }
