@@ -626,7 +626,6 @@ Host: example.com
       val serverConnectionContext = ExampleHttpContexts.exampleServerContext
 
       // Create SSLEngine without hostname verification as ExampleHttpContexts.exampleClientContext sets hostname as akka.example.org
-      // Create SSLEngine without hostname verification as ExampleHttpContexts.exampleClientContext sets hostname as akka.example.org
       val context = {
         val certStore = KeyStore.getInstance(KeyStore.getDefaultType)
         certStore.load(null, null)
