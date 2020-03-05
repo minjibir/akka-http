@@ -625,22 +625,10 @@ Host: example.com
 
       val serverConnectionContext = ExampleHttpContexts.exampleServerContext
 
-      // Create SSLEngine without hostname verification as ExampleHttpContexts.exampleClientContext sets hostname as akka.example.org
-      val context = {
-        val certStore = KeyStore.getInstance(KeyStore.getDefaultType)
-        certStore.load(null, null)
-        // only do this if you want to accept a custom root CA. Understand what you are doing!
-        certStore.setCertificateEntry("ca", CertificateFactory.getInstance("X.509").generateCertificate(getClass.getClassLoader.getResourceAsStream("keys/rootCA.crt")))
-
-        val certManagerFactory = TrustManagerFactory.getInstance("SunX509")
-        certManagerFactory.init(certStore)
-
-        val context = SSLContext.getInstance("TLS")
-        context.init(null, certManagerFactory.getTrustManagers, new SecureRandom)
-        context
-      }
+      // Create SSLEngine without hostname verification as ExampleHttpContexts.exampleServerContext has a certificate
+      // that is valid for the 'akka.example.org' but we're connecting to 'localhost' - so we need to disable hostname verification.
       val insecureSslEngineFactory = () => {
-        val engine = context.createSSLEngine()
+        val engine = ExampleHttpContexts.exampleClientSSLContext.createSSLEngine()
         engine.setUseClientMode(true)
         engine
       }
